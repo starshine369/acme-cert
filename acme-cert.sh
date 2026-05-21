@@ -117,7 +117,7 @@ check_result(){
         green "私钥 (key) : ${CERT_PATH}/private.key"
         green "==============================================\n"
     else
-        red "❌ 证书申请失败！请检查 IP 解析或防火墙设置。"
+        red "❌ 证书申请失败！请检查 IP 解析、防火墙或 API 密钥设置。"
         exit 1
     fi
 }
@@ -172,25 +172,34 @@ mode_dns_api(){
     install_acme_core
     get_domain_and_path
     
-    echo -e "请选择托管域名解析服务商：\n  1. Cloudflare\n  2. 腾讯云 DNSPod\n  3. 阿里云 Aliyun"
-    readp "请选择 [1-3]: " api_choice
+    echo -e "请选择托管域名解析服务商："
+    echo -e "  1. Cloudflare (API Token 模式 - 推荐，更安全)"
+    echo -e "  2. Cloudflare (Global API Key 模式 - 传统老方法)"
+    echo -e "  3. 腾讯云 DNSPod"
+    echo -e "  4. 阿里云 Aliyun"
+    readp "请选择 [1-4]: " api_choice
     
     case "$api_choice" in 
         1 )
+            readp "请输入 Cloudflare API Token: " CF_Token
+            export CF_Token
+            bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d ${ym} -d *.${ym} -k ec-256 --server letsencrypt --insecure
+            ;;
+        2 )
             readp "请输入 Cloudflare Global API Key: " CF_Key
             export CF_Key
             readp "请输入 Cloudflare 注册邮箱: " CF_Email
             export CF_Email
             bash ~/.acme.sh/acme.sh --issue --dns dns_cf -d ${ym} -d *.${ym} -k ec-256 --server letsencrypt --insecure
             ;;
-        2 )
+        3 )
             readp "请输入腾讯云 DNSPod DP_Id: " DP_Id
             export DP_Id
             readp "请输入腾讯云 DNSPod DP_Key: " DP_Key
             export DP_Key
             bash ~/.acme.sh/acme.sh --issue --dns dns_dp -d ${ym} -d *.${ym} -k ec-256 --server letsencrypt --insecure
             ;;
-        3 )
+        4 )
             readp "请输入阿里云 Ali_Key: " Ali_Key
             export Ali_Key
             readp "请输入阿里云 Ali_Secret: " Ali_Secret
