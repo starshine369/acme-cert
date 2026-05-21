@@ -222,11 +222,19 @@ renew_certs(){
 }
 
 uninstall_acme(){
-    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && red "未安装 acme.sh 核心组件" && exit 
-    bash ~/.acme.sh/acme.sh --uninstall
-    rm -rf ~/.acme.sh
+    # 1. 尝试清理 acme.sh 核心组件
+    if [[ -n $(~/.acme.sh/acme.sh -v 2>/dev/null) ]]; then
+        bash ~/.acme.sh/acme.sh --uninstall
+        rm -rf ~/.acme.sh
+        green "acme.sh 核心组件已成功卸载。"
+    else
+        yellow "未检测到 acme.sh 核心，已跳过核心清理。"
+    fi
+    
+    # 2. 无论核心是否存在，都强制清理全局快捷键
     rm -f /usr/local/bin/acme
-    green "acme.sh 及快捷命令卸载完毕！(注意：已生成的证书文件将保留)"
+    green "Starshine ACME 面板及快捷命令已彻底卸载！(注意：已生成的证书文件仍会保留在原处)"
+    exit 0
 }
 
 # ==========================================
