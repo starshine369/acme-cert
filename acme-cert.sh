@@ -83,6 +83,12 @@ release_port_80(){
 }
 
 install_acme_core(){
+    # 智能感知：如果已安装，直接跳过，保护现有配置
+    if [[ -n $(~/.acme.sh/acme.sh -v 2>/dev/null) ]]; then
+        green "检测到 acme.sh 核心组件已安装，跳过环境重置..."
+        return
+    fi
+
     readp "请输入注册申请所需邮箱 (直接回车随机生成): " Aemail
     if [ -z $Aemail ]; then
         Aemail=$(date +%s%N | md5sum | cut -c 1-8)@gmail.com
@@ -161,7 +167,6 @@ mode_standalone(){
         check_ip_match
         
         v4v6
-        # --days 60: 等于 90 天有效期用了 60 天后续期 (即提前 1 个月)
         if [[ $domainIP == $v6 ]]; then
             bash ~/.acme.sh/acme.sh --issue -d ${ym} --standalone -k ec-256 --server letsencrypt --listen-v6 --insecure --days 60
         else
@@ -177,7 +182,6 @@ mode_standalone(){
         readp "请选择 [1-3]: " ip_choice
         
         v4v6
-        # --days 5: 无论有效期多长，强制每 5 天向 Let's Encrypt 重新请求刷新
         case "$ip_choice" in 
             1 )
                 if [ -z "$v4" ]; then red "未检测到公网 IPv4！" && exit; fi
@@ -300,7 +304,7 @@ uninstall_acme(){
 clear
 green "========================================================================="
 blue  "            Starshine ACME 自动化证书管理脚本"
-white "            Github: starshine369/acme-cert"
+white "                 Github: starshine369/acme-cert"
 green "========================================================================="
 echo -e " ${green}1.${plain} 独立 80 端口模式申请证书 (支持纯 IP / 单域名)"
 echo -e " ${green}2.${plain} DNS API 模式申请证书 (需提供 API，支持泛域名)"
