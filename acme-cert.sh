@@ -317,7 +317,7 @@ start_menu(){
         clear
         green "========================================================================="
         blue  "            Starshine ACME 自动化证书管理脚本"
-        white "                 Github: starshine369/acme-cert"
+        white "             Github: starshine369/acme-cert"
         green "========================================================================="
         echo -e " ${green}1.${plain} 独立 80 端口模式申请证书 (支持纯 IP / 单域名)"
         echo -e " ${green}2.${plain} DNS API 模式申请证书 (需提供 API，支持泛域名)"
