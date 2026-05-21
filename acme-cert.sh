@@ -185,8 +185,6 @@ mode_standalone(){
         readp "请选择 [1-3]: " ip_choice
         
         v4v6
-        # --certificate-profile shortlived: 启用 Let's Encrypt 专门的 IP 签发通道
-        # --days 4: 在使用了 4 天后（剩余约 2.6 天生命）强制触发自动续期
         case "$ip_choice" in 
             1 )
                 if [ -z "$v4" ]; then red "未检测到公网 IPv4！" && sleep 2 && return; fi
@@ -281,9 +279,24 @@ mode_dns_api(){
 # ==========================================
 list_certs(){
     [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && red "未安装 acme.sh 核心组件" && sleep 2 && return
-    green "=============================================="
-    bash ~/.acme.sh/acme.sh --list
-    green "=============================================="
+    echo
+    green "==========================================================================================================================="
+    # 启用 AWK 强迫症对齐引擎，自动补齐缺失的 Profile 字段
+    bash ~/.acme.sh/acme.sh --list | awk '
+    NR==1 {
+        printf "\033[33m%-22s %-10s %-22s %-12s %-16s %-21s %-21s\033[0m\n", "Main_Domain", "KeyLength", "SAN_Domains", "Profile", "CA", "Created", "Renew"
+    }
+    NR>1 {
+        if (NF == 7) {
+            printf "%-22s %-10s %-22s %-12s %-16s %-21s %-21s\n", $1, $2, $3, $4, $5, $6, $7
+        } else if (NF == 6) {
+            printf "%-22s %-10s %-22s %-12s %-16s %-21s %-21s\n", $1, $2, $3, "-", $4, $5, $6
+        } else {
+            print $0
+        }
+    }'
+    green "==========================================================================================================================="
+    echo
     readp "按回车键返回主菜单..." pause_flag
 }
 
@@ -323,20 +336,20 @@ start_menu(){
         echo -e " ${green}2.${plain} DNS API 模式申请证书 (需提供 API，支持泛域名)"
         echo -e " ${green}3.${plain} 查询当前已申请的域名/IP证书信息"
         echo -e " ${green}4.${plain} 手动强制续期所有证书"
-        echo -e " ${green}5.${plain} 彻底卸载 acme.sh 及本脚本"
+        echo -e " ${green}99.${plain} 彻底卸载 acme.sh 及本脚本 (防误触)"
         echo -e " ${green}0.${plain} 退出"
         green "========================================================================="
         echo -e "\033[36m\033[01m 💡 提示：本脚本已注册全局命令，随时输入 acme 即可呼出本面板。\033[0m"
-        readp "请输入数字 [0-5]: " NumberInput
+        readp "请输入数字: " NumberInput
 
         case "$NumberInput" in     
             1 ) mode_standalone ;;
             2 ) mode_dns_api ;;
             3 ) list_certs ;;
             4 ) renew_certs ;;
-            5 ) uninstall_acme ;;
+            99 ) uninstall_acme ;;
             0 ) clear && exit 0 ;;
-            * ) red "输入错误！请选择 0-5 之间的数字！" && sleep 1.5 ;;      
+            * ) red "输入错误！请重新输入正确的数字！" && sleep 1.5 ;;      
         esac
     done
 }
