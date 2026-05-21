@@ -154,7 +154,7 @@ mode_standalone(){
     echo -e "\n=============================================="
     echo -e "请选择申请证书的目标类型："
     echo -e "  ${green}1.${plain} 域名证书 (有效期90天，提前1个月自动续期)"
-    echo -e "  ${green}2.${plain} 纯 IP 证书 (强行高频轮换，每 5 天自动续期)"
+    echo -e "  ${green}2.${plain} 纯 IP 证书 (高频轮换，每 5 天自动续期)"
     readp "请选择 [1-2]: " cert_type
     
     if [[ "$cert_type" == "1" ]]; then
@@ -304,7 +304,7 @@ uninstall_acme(){
 clear
 green "========================================================================="
 blue  "            Starshine ACME 自动化证书管理脚本"
-white "                 Github: starshine369/acme-cert"
+white "             Github: starshine369/acme-cert"
 green "========================================================================="
 echo -e " ${green}1.${plain} 独立 80 端口模式申请证书 (支持纯 IP / 单域名)"
 echo -e " ${green}2.${plain} DNS API 模式申请证书 (需提供 API，支持泛域名)"
