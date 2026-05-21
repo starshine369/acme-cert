@@ -83,7 +83,6 @@ release_port_80(){
 }
 
 install_acme_core(){
-    # 智能感知：如果已安装，直接跳过，保护现有配置
     if [[ -n $(~/.acme.sh/acme.sh -v 2>/dev/null) ]]; then
         green "检测到 acme.sh 核心组件已安装，跳过环境重置..."
         return
@@ -102,7 +101,7 @@ install_acme_core(){
         green "acme.sh 安装成功！"
         bash ~/.acme.sh/acme.sh --upgrade --auto-upgrade
     else
-        red "acme.sh 安装失败，请检查网络！" && exit
+        red "acme.sh 安装失败，请检查网络！"
     fi
 }
 
@@ -123,8 +122,8 @@ check_result(){
         green "==============================================\n"
     else
         red "❌ 证书申请失败！请检查 IP 解析、防火墙或 API 密钥设置。"
-        exit 1
     fi
+    readp "按回车键返回主菜单..." pause_flag
 }
 
 check_ip_match(){
@@ -151,6 +150,10 @@ mode_standalone(){
     release_port_80
     install_acme_core
     
+    if [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]]; then
+        red "acme.sh 核心未就绪，无法继续流程。" && sleep 2 && return
+    fi
+    
     echo -e "\n=============================================="
     echo -e "请选择申请证书的目标类型："
     echo -e "  ${green}1.${plain} 域名证书 (有效期90天，提前1个月自动续期)"
@@ -159,7 +162,7 @@ mode_standalone(){
     
     if [[ "$cert_type" == "1" ]]; then
         readp "请输入需要申请证书的域名 (如 example.com): " ym
-        if [ -z "$ym" ]; then red "域名不能为空！" && exit; fi
+        if [ -z "$ym" ]; then red "域名不能为空！" && sleep 2 && return; fi
         readp "请输入存放路径 (回车默认存放于 /root/cert/domain/$ym/ ): " custom_path
         CERT_PATH=${custom_path:-/root/cert/domain/$ym}
         green "证书将下发至: $CERT_PATH"
@@ -184,30 +187,30 @@ mode_standalone(){
         v4v6
         case "$ip_choice" in 
             1 )
-                if [ -z "$v4" ]; then red "未检测到公网 IPv4！" && exit; fi
+                if [ -z "$v4" ]; then red "未检测到公网 IPv4！" && sleep 2 && return; fi
                 ym="$v4"
                 CERT_PATH="/root/cert/IP/$ym"
                 green "将为 IPv4: $ym 申请证书。下发至: $CERT_PATH"
                 bash ~/.acme.sh/acme.sh --issue -d ${ym} --standalone -k ec-256 --server letsencrypt --insecure --days 5
                 ;;
             2 )
-                if [ -z "$v6" ]; then red "未检测到公网 IPv6！" && exit; fi
+                if [ -z "$v6" ]; then red "未检测到公网 IPv6！" && sleep 2 && return; fi
                 ym="$v6"
                 CERT_PATH="/root/cert/IP/$ym"
                 green "将为 IPv6: $ym 申请证书。下发至: $CERT_PATH"
                 bash ~/.acme.sh/acme.sh --issue -d ${ym} --standalone -k ec-256 --server letsencrypt --listen-v6 --insecure --days 5
                 ;;
             3 )
-                if [ -z "$v4" ] || [ -z "$v6" ]; then red "IPv4 或 IPv6 缺失，环境不满足双栈条件！" && exit; fi
+                if [ -z "$v4" ] || [ -z "$v6" ]; then red "IPv4 或 IPv6 缺失，环境不满足双栈条件！" && sleep 2 && return; fi
                 ym="$v4"
                 CERT_PATH="/root/cert/IP/$ym"
                 green "将为双栈 ($v4 + $v6) 申请整合证书。下发至: $CERT_PATH"
                 bash ~/.acme.sh/acme.sh --issue -d ${v4} -d ${v6} --standalone -k ec-256 --server letsencrypt --listen-v6 --insecure --days 5
                 ;;
-            * ) red "选择错误！"; exit 1 ;;
+            * ) red "选择错误，正在返回主菜单..." && sleep 2 && return ;;
         esac
     else
-        red "选择错误！" && exit
+        red "选择错误，正在返回主菜单..." && sleep 2 && return
     fi
     
     install_cert
@@ -220,8 +223,12 @@ mode_standalone(){
 mode_dns_api(){
     install_acme_core
     
+    if [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]]; then
+        red "acme.sh 核心未就绪，无法继续流程。" && sleep 2 && return
+    fi
+    
     readp "请输入需要申请证书的域名 (如 example.com): " ym
-    if [ -z "$ym" ]; then red "域名不能为空！" && exit; fi
+    if [ -z "$ym" ]; then red "域名不能为空！" && sleep 2 && return; fi
     readp "请输入存放路径 (回车默认存放于 /root/cert/domain/$ym/ ): " custom_path
     CERT_PATH=${custom_path:-/root/cert/domain/$ym}
     green "证书将下发至: $CERT_PATH"
@@ -260,7 +267,7 @@ mode_dns_api(){
             export Ali_Secret
             bash ~/.acme.sh/acme.sh --issue --dns dns_ali -d ${ym} -d *.${ym} -k ec-256 --server letsencrypt --insecure --days 60
             ;;
-        * ) red "选择错误！"; exit 1 ;;
+        * ) red "选择错误，正在返回主菜单..." && sleep 2 && return ;;
     esac
     
     install_cert
@@ -271,17 +278,19 @@ mode_dns_api(){
 # 维护模块
 # ==========================================
 list_certs(){
-    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && red "未安装 acme.sh 核心组件" && exit 
+    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && red "未安装 acme.sh 核心组件" && sleep 2 && return
     green "=============================================="
     bash ~/.acme.sh/acme.sh --list
     green "=============================================="
+    readp "按回车键返回主菜单..." pause_flag
 }
 
 renew_certs(){
-    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && red "未安装 acme.sh 核心组件" && exit 
+    [[ -z $(~/.acme.sh/acme.sh -v 2>/dev/null) ]] && red "未安装 acme.sh 核心组件" && sleep 2 && return
     green "开始尝试续期所有证书..."
     bash ~/.acme.sh/acme.sh --cron -f
     green "续期执行完毕！"
+    readp "按回车键返回主菜单..." pause_flag
 }
 
 uninstall_acme(){
@@ -294,33 +303,41 @@ uninstall_acme(){
     fi
     
     rm -f /usr/local/bin/acme
-    green "Starshine ACME 面板及快捷命令已彻底卸载！(注意：已生成的证书文件仍会保留在原处)"
+    green "Starshine ACME 面板及快捷命令已彻底卸载！"
     exit 0
 }
 
 # ==========================================
-# 主菜单
+# 主菜单循环引擎
 # ==========================================
-clear
-green "========================================================================="
-blue  "            Starshine ACME 自动化证书管理脚本"
-white "             Github: starshine369/acme-cert"
-green "========================================================================="
-echo -e " ${green}1.${plain} 独立 80 端口模式申请证书 (支持纯 IP / 单域名)"
-echo -e " ${green}2.${plain} DNS API 模式申请证书 (需提供 API，支持泛域名)"
-echo -e " ${green}3.${plain} 查询当前已申请的域名/IP证书信息"
-echo -e " ${green}4.${plain} 手动强制续期所有证书"
-echo -e " ${green}5.${plain} 彻底卸载 acme.sh 及本脚本"
-echo -e " ${green}0.${plain} 退出"
-green "========================================================================="
-echo -e "\033[36m\033[01m 💡 提示：本脚本已注册全局命令，随时输入 acme 即可呼出本面板。\033[0m"
-readp "请输入数字 [0-5]: " NumberInput
+start_menu(){
+    while true; do
+        clear
+        green "========================================================================="
+        blue  "            Starshine ACME 自动化证书管理脚本"
+        white "             Github: starshine369/acme-cert"
+        green "========================================================================="
+        echo -e " ${green}1.${plain} 独立 80 端口模式申请证书 (支持纯 IP / 单域名)"
+        echo -e " ${green}2.${plain} DNS API 模式申请证书 (需提供 API，支持泛域名)"
+        echo -e " ${green}3.${plain} 查询当前已申请的域名/IP证书信息"
+        echo -e " ${green}4.${plain} 手动强制续期所有证书"
+        echo -e " ${green}5.${plain} 彻底卸载 acme.sh 及本脚本"
+        echo -e " ${green}0.${plain} 退出"
+        green "========================================================================="
+        echo -e "\033[36m\033[01m 💡 提示：本脚本已注册全局命令，随时输入 acme 即可呼出本面板。\033[0m"
+        readp "请输入数字 [0-5]: " NumberInput
 
-case "$NumberInput" in     
-    1 ) mode_standalone;;
-    2 ) mode_dns_api;;
-    3 ) list_certs;;
-    4 ) renew_certs;;
-    5 ) uninstall_acme;;
-    * ) exit ;;      
-esac
+        case "$NumberInput" in     
+            1 ) mode_standalone ;;
+            2 ) mode_dns_api ;;
+            3 ) list_certs ;;
+            4 ) renew_certs ;;
+            5 ) uninstall_acme ;;
+            0 ) clear && exit 0 ;;
+            * ) red "输入错误！请选择 0-5 之间的数字！" && sleep 1.5 ;;      
+        esac
+    done
+}
+
+# 启动面板
+start_menu
