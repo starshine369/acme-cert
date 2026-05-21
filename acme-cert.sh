@@ -121,7 +121,7 @@ check_result(){
         green "私钥 (key) : ${CERT_PATH}/private.key"
         green "==============================================\n"
     else
-        red "❌ 证书申请失败！请检查 IP 解析、防火墙或 API 密钥设置。"
+        red "❌ 证书申请失败！请检查 80 端口是否完全放行（包括外部防火墙如甲骨文云、腾讯云后台规则）。"
     fi
     readp "按回车键返回主菜单..." pause_flag
 }
@@ -138,7 +138,7 @@ check_ip_match(){
     else
         green "当前域名解析到的 IP: $domainIP"
         if [[ ! $domainIP =~ $v4 ]] && [[ ! $domainIP =~ $v6 ]]; then
-            yellow "⚠️ 警告：当前域名解析 IP 与本机 IP 不匹配！若是独立 80 端口模式，必然失败！"
+            yellow "⚠️ 警告：当前域名解析 IP 与本机 IP 不匹配！"
         fi
     fi
 }
@@ -157,7 +157,7 @@ mode_standalone(){
     echo -e "\n=============================================="
     echo -e "请选择申请证书的目标类型："
     echo -e "  ${green}1.${plain} 域名证书 (有效期90天，提前1个月自动续期)"
-    echo -e "  ${green}2.${plain} 纯 IP 证书 (高频轮换，每 5 天自动续期)"
+    echo -e "  ${green}2.${plain} 纯 IP 证书 (由 Let's Encrypt 签发，每 4 天自动续期)"
     readp "请选择 [1-2]: " cert_type
     
     if [[ "$cert_type" == "1" ]]; then
@@ -185,27 +185,29 @@ mode_standalone(){
         readp "请选择 [1-3]: " ip_choice
         
         v4v6
+        # --certificate-profile shortlived: 启用 Let's Encrypt 专门的 IP 签发通道
+        # --days 4: 在使用了 4 天后（剩余约 2.6 天生命）强制触发自动续期
         case "$ip_choice" in 
             1 )
                 if [ -z "$v4" ]; then red "未检测到公网 IPv4！" && sleep 2 && return; fi
                 ym="$v4"
                 CERT_PATH="/root/cert/IP/$ym"
-                green "将为 IPv4: $ym 申请证书。下发至: $CERT_PATH"
-                bash ~/.acme.sh/acme.sh --issue -d ${ym} --standalone -k ec-256 --server letsencrypt --insecure --days 5
+                green "将为 IPv4: $ym 申请短周期证书。下发至: $CERT_PATH"
+                bash ~/.acme.sh/acme.sh --issue -d ${ym} --standalone -k ec-256 --server letsencrypt --certificate-profile shortlived --insecure --days 4
                 ;;
             2 )
                 if [ -z "$v6" ]; then red "未检测到公网 IPv6！" && sleep 2 && return; fi
                 ym="$v6"
                 CERT_PATH="/root/cert/IP/$ym"
-                green "将为 IPv6: $ym 申请证书。下发至: $CERT_PATH"
-                bash ~/.acme.sh/acme.sh --issue -d ${ym} --standalone -k ec-256 --server letsencrypt --listen-v6 --insecure --days 5
+                green "将为 IPv6: $ym 申请短周期证书。下发至: $CERT_PATH"
+                bash ~/.acme.sh/acme.sh --issue -d ${ym} --standalone -k ec-256 --server letsencrypt --certificate-profile shortlived --listen-v6 --insecure --days 4
                 ;;
             3 )
                 if [ -z "$v4" ] || [ -z "$v6" ]; then red "IPv4 或 IPv6 缺失，环境不满足双栈条件！" && sleep 2 && return; fi
                 ym="$v4"
                 CERT_PATH="/root/cert/IP/$ym"
-                green "将为双栈 ($v4 + $v6) 申请整合证书。下发至: $CERT_PATH"
-                bash ~/.acme.sh/acme.sh --issue -d ${v4} -d ${v6} --standalone -k ec-256 --server letsencrypt --listen-v6 --insecure --days 5
+                green "将为双栈 ($v4 + $v6) 申请整合短周期证书。下发至: $CERT_PATH"
+                bash ~/.acme.sh/acme.sh --issue -d ${v4} -d ${v6} --standalone -k ec-256 --server letsencrypt --certificate-profile shortlived --listen-v6 --insecure --days 4
                 ;;
             * ) red "选择错误，正在返回主菜单..." && sleep 2 && return ;;
         esac
@@ -315,7 +317,7 @@ start_menu(){
         clear
         green "========================================================================="
         blue  "            Starshine ACME 自动化证书管理脚本"
-        white "             Github: starshine369/acme-cert"
+        white "                 Github: starshine369/acme-cert"
         green "========================================================================="
         echo -e " ${green}1.${plain} 独立 80 端口模式申请证书 (支持纯 IP / 单域名)"
         echo -e " ${green}2.${plain} DNS API 模式申请证书 (需提供 API，支持泛域名)"
